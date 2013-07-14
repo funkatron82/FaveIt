@@ -197,7 +197,7 @@ class FaveIt {
 			return;
 	
 		// TODO: replace APP_TD with your textdomain
-		define( 'P2P_TEXTDOMAIN', APP_TD );
+		define( 'P2P_TEXTDOMAIN', $this->plugin_slug );
 	
 		require_once dirname( __FILE__ ) . '/inc/p2p-core/init.php';
 	
@@ -213,6 +213,7 @@ class FaveIt {
 	 */
 	public function fave_connection() {
 		$types = get_option( 'fave_post_types', array( 'post', 'page' ) );	
+		$types - apply_filters( 'fave_post_types', $types );
 		p2p_register_connection_type( array(
 			'name' => 'fave',
 			'from' => $types,
@@ -301,9 +302,12 @@ class FaveIt {
 		$selected = get_option( 'fave_post_types' );
 		
 		foreach( $post_types as $post_type ) {
-			echo '<label>';
-			printf( '<input type="checkbox" value="%s" name="%s" %s /> ', $post_type->name, 'fave_post_types[]', checked( in_array( $post_type->name, $selected ), true, false ) );
-			echo $post_type->labels->name . '</label> <br />';			
+			printf( 
+				'<label><input type="checkbox" value="%s" name="%s" %s />  %s </label> <br />', $post_type->name, 
+				'fave_post_types[]', 
+				checked( in_array( $post_type->name, $selected ), true, false ), 
+				$post_type->labels->name 
+			);		
 		}
 	}
 	
@@ -312,16 +316,21 @@ class FaveIt {
 	 *
 	 * @since    1.0.0
 	 *
-	 * @param    int|WP_Post    $post    Post id or post object
-	 * @param    int|WP_User    $user    User id or user object
+	 * @param    int|WP_Post    $post_id    Post id or post object
+	 * @param    int|WP_User    $user_id    User id or user object
 	 *
-	 * @return   int|WP_Error   Returns connection id or WP_Error Object
+	 * @return   int|boolean   Returns connection id or false if no connection made
 	 */
-	static function fave_post( $post = NULL, $user = NULL ) {
-		if( !  $post  || !  $user || $user != get_current_user_id() || !function_exists( 'p2p_type' ))
-			return NULL;
+	static function fave_post( $post_id = NULL, $user_id = NULL ) {
+		if( !  $post_id  || !  $user_id || $user_id != get_current_user_id() || !function_exists( 'p2p_type' ))
+			return false;
 		
-		return p2p_type( 'fave' )->connect( $post, $user );	
+		if( $connection = p2p_type( 'fave' )->connect( $post_id, $user_id ) && !is_wp_error( $connection ) ) {
+			do_action( 'fave_post', $post_id, $user_id );
+			return $connection;	
+		}
+		
+		return false;
 	}
 	
 	/**
@@ -329,16 +338,21 @@ class FaveIt {
 	 *
 	 * @since    1.0.0
 	 *
-	 * @param    int|WP_Post    $post    Post id or post object
-	 * @param    int|WP_User    $user    User id or user object
+	 * @param    int|WP_Post    $post_id    Post id or post object
+	 * @param    int|WP_User    $user_id    User id or user object
 	 *
-	 * @return   int|WP_Error   Returns number of removed  or WP_Error Object
+	 * @return   boolean    Returns if unfave successful
 	 */
-	static function unfave_post( $post = 0, $user = 0 ) {
-		if( !  $post  || !  $user || $user != get_current_user_id() ||  !function_exists( 'p2p_type' ))
-			return;
+	static function unfave_post( $post_id = 0, $user_id = 0 ) {
+		if( !  $post_id  || !  $user_id || $user_id != get_current_user_id() ||  !function_exists( 'p2p_type' ))
+			return false;
 		
-		return p2p_type( 'fave' )->disconnect( $post, $user );	
+		if( $success =  p2p_type( 'fave' )->disconnect( $post_id, $user_id ) > 0){
+			do_action( 'unfave_post', $post_id, $user_id );
+			return true;
+		}
+		
+		return false;	
 	}	
 	
 	/**
@@ -346,22 +360,22 @@ class FaveIt {
 	 *
 	 * @since    1.0.0
 	 *
-	 * @param    int|WP_Post    $post    Post id or post object
-	 * @param    int|WP_User    $user    User id or user object
+	 * @param    int|WP_Post    $post_id    Post id or post object
+	 * @param    int|WP_User    $user_id    User id or user object
 	 *
 	 * @return   int|WP_Error   Returns connection id or WP_Error Object
 	 */
-	static function has_fave( $post = 0, $user = 0 ) {
+	static function has_fave( $post_id = 0, $user_id = 0 ) {
 		if( !function_exists( 'p2p_type' ))
-			return;
+			return false;
 			
-		if( empty( $post ) )
-			$post = get_queried_object_id();
+		if( empty( $post_id ) )
+			$post_id = get_queried_object_id();
 			
-		if( empty( $user ) )
-			$user = get_current_user_id();
+		if( empty( $user_id ) )
+			$user_id = get_current_user_id();
 		
-		return p2p_type( 'fave' )->get_p2p_id( $post, $user );
+		return p2p_type( 'fave' )->get_p2p_id( $post_id, $user_id );
 	}
 	
 	/**
@@ -375,9 +389,7 @@ class FaveIt {
 		$post_id = $_REQUEST['post_id'] ? (int) $_REQUEST['post_id'] : 0;
 		$user_id = $_REQUEST['user_id'] ? (int) $_REQUEST['user_id'] : 0;
 		
-		$connection = self::fave_post( $post_id, $user_id );
-		
-		if( $connection && !is_wp_error( $connection ) )
+		if( self::fave_post( $post_id, $user_id ) )
 			wp_send_json_success();
 		else
 			wp_send_json_error();
