@@ -213,7 +213,7 @@ class FaveIt {
 	 */
 	public function fave_connection() {
 		$types = get_option( 'fave_post_types', array( 'post', 'page' ) );	
-		$types - apply_filters( 'fave_post_types', $types );
+		$types = apply_filters( 'fave_post_types', $types );
 		p2p_register_connection_type( array(
 			'name' => 'fave',
 			'from' => $types,
@@ -332,7 +332,7 @@ class FaveIt {
 			if( self::has_fave( $post_id, $user_id ) )
 				return true;
 			
-			//If connection  occurs, return true and set off action
+			//If connection occurs, return true and set off action
 			if( !is_wp_error( p2p_type( 'fave' )->connect( $post_id, $user_id ) ) ) {
 				do_action( 'fave_post', $post_id, $user_id );
 				return true;	

@@ -9,9 +9,9 @@ var faveIt = faveIt || {};
 		},
 		
 		_init : function() {
-			var el = this.element,
+			var element = this.element,
 				options = this.options,
-				post = el.data( 'post-id' );
+				post =  options.post || element.data( 'fave-post' );
 				
 			if( post )
 				options.post = post;
@@ -20,7 +20,7 @@ var faveIt = faveIt || {};
 			}
 			
 			//Events
-			el.on( 'click', $.proxy( this.toggle, this ) );
+			element.on( 'click', $.proxy( this.toggle, this ) );
 		},
 		
 		toggle : function( e ) {
