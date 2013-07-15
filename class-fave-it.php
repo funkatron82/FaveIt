@@ -319,17 +319,27 @@ class FaveIt {
 	 * @param    int|WP_Post    $post_id    Post id or post object
 	 * @param    int|WP_User    $user_id    User id or user object
 	 *
-	 * @return   int|boolean   Returns connection id or false if no connection made
+	 * @return   boolean   Returns connection id or false if no connection made
 	 */
 	static function fave_post( $post_id = NULL, $user_id = NULL ) {
-		if( !  $post_id  || !  $user_id || $user_id != get_current_user_id() || !function_exists( 'p2p_type' ))
-			return false;
-		
-		if( $connection = p2p_type( 'fave' )->connect( $post_id, $user_id ) && !is_wp_error( $connection ) ) {
-			do_action( 'fave_post', $post_id, $user_id );
-			return $connection;	
+		if( $post_id  || function_exists( 'p2p_type' )){	
+			
+			//If not set, set $user_id to current user
+			if( ! $user_id )
+				$user_id = get_current_user_id();
+			
+			//Check if connection already exists
+			if( self::has_fave( $post_id, $user_id ) )
+				return true;
+			
+			//If connection  occurs, return true and set off action
+			if( !is_wp_error( p2p_type( 'fave' )->connect( $post_id, $user_id ) ) ) {
+				do_action( 'fave_post', $post_id, $user_id );
+				return true;	
+			}
 		}
 		
+		//If everything else fails
 		return false;
 	}
 	
@@ -344,14 +354,19 @@ class FaveIt {
 	 * @return   boolean    Returns if unfave successful
 	 */
 	static function unfave_post( $post_id = 0, $user_id = 0 ) {
-		if( !  $post_id  || !  $user_id || $user_id != get_current_user_id() ||  !function_exists( 'p2p_type' ))
-			return false;
-		
-		if( $success =  p2p_type( 'fave' )->disconnect( $post_id, $user_id ) > 0){
-			do_action( 'unfave_post', $post_id, $user_id );
-			return true;
+		if( $post_id  || function_exists( 'p2p_type' )){				
+			//If not set, set $user_id to current user
+			if( ! $user_id )
+				$user_id = get_current_user_id();
+			
+			//Unfave and set off action
+			if( p2p_type( 'fave' )->disconnect( $post_id, $user_id ) > 0){
+				do_action( 'unfave_post', $post_id, $user_id );
+				return true;
+			}		
 		}
 		
+		//If all esle fails
 		return false;	
 	}	
 	
@@ -363,9 +378,10 @@ class FaveIt {
 	 * @param    int|WP_Post    $post_id    Post id or post object
 	 * @param    int|WP_User    $user_id    User id or user object
 	 *
-	 * @return   int|WP_Error   Returns connection id or WP_Error Object
+	 * @return   boolean   
 	 */
 	static function has_fave( $post_id = 0, $user_id = 0 ) {
+		//Return false is p2p connections not available
 		if( !function_exists( 'p2p_type' ))
 			return false;
 			
@@ -375,7 +391,7 @@ class FaveIt {
 		if( empty( $user_id ) )
 			$user_id = get_current_user_id();
 		
-		return p2p_type( 'fave' )->get_p2p_id( $post_id, $user_id );
+		return (boolean) p2p_type( 'fave' )->get_p2p_id( $post_id, $user_id );
 	}
 	
 	/**
